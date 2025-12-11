@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Librairie - Authentification</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-body">
+  <div class="auth-container">
+    <h1>Librairie</h1>
+
+    <div class="tabs">
+      <button id="tab-login" class="active">Connexion</button>
+      <button id="tab-register">Inscription</button>
+    </div>
+
+    <form id="login-form" class="auth-form">
+      <input type="email" id="login-email" placeholder="Email" required>
+      <input type="password" id="login-password" placeholder="Mot de passe" required>
+      <button type="submit">Se connecter</button>
+      <p class="error" id="login-error"></p>
+    </form>
+
+    <form id="register-form" class="auth-form hidden">
+      <input type="email" id="register-email" placeholder="Email" required>
+      <input type="password" id="register-password" placeholder="Mot de passe" required>
+      <button type="submit">S'inscrire</button>
+      <p class="error" id="register-error"></p>
+    </form>
+  </div>
+
+  <script src="auth.js"></script>
+</body>
+</html>

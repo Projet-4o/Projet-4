@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Librairie - Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Gestion de stock - Librairie</h1>
+    <button id="logout-btn">Déconnexion</button>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Ajouter un livre</h2>
+      <form id="book-form">
+        <input type="text" id="book-title" placeholder="Titre" required>
+        <input type="text" id="book-author" placeholder="Auteur" required>
+        <input type="number" id="book-price" placeholder="Prix" step="0.01" required>
+        <input type="number" id="book-stock" placeholder="Stock initial" required>
+        <button type="submit">Ajouter</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Stock des livres</h2>
+      <table id="books-table">
+        <thead>
+          <tr>
+            <th>Titre</th>
+            <th>Auteur</th>
+            <th>Prix</th>
+            <th>Stock</th>
+            <th>Commander</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Statistiques ventes</h2>
+      <p>Total articles vendus : <span id="stat-items">0</span></p>
+      <p>Chiffre d'affaires : <span id="stat-revenue">0</span> €</p>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
