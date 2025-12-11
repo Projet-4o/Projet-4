@@ -1,19 +1,25 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import csv, os, uuid, hashlib
 from datetime import datetime, timedelta
 from flask_cors import CORS
 import webview
+import threading
 
-html_file = os.path.join(os.path.dirname(__file__), "frontend/index.html")
+
+html_file = os.path.join(os.path.dirname(__file__), "index.html")
 
 app = Flask(__name__)
 CORS(app)
 
 DATA_DIR = "data"
+FRONTEND_DIR = "frontend"
 USERS_FILE = os.path.join(DATA_DIR, "users.csv")
 BOOKS_FILE = os.path.join(DATA_DIR, "books.csv")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.csv")
 SALES_FILE = os.path.join(DATA_DIR, "sales.csv")
+INDEX_FILE = os.path.join(FRONTEND_DIR, "index.html")
+APP_FILE = os.path.join(FRONTEND_DIR, "app.js")
+STYLES_FILE = os.path.join(FRONTEND_DIR, "styles.css")
 SESSIONS = {}
 
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -174,9 +180,18 @@ def stats():
         "total_revenue": total_revenue,
         "total_items": total_items
     }), 200
+    
+    
+@app.route("/", methods=["GET"])
+def home():
+    return send_from_directory("frontend", "index.html")
 
-window = webview.create_window('Librairie App', html_file)
-webview.start()
+
+def run_flask():
+    app.run(port=5000, debug=True, use_reloader=False)
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    t = threading.Thread(target=run_flask, daemon=True)
+    t.start()
+    window = webview.create_window('Librairie App', 'http://127.0.0.1:5000')
+    webview.start()
