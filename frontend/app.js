@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "/api";
+
 const token = localStorage.getItem("token");
 if (!token) {
   window.location.href = "index.html";
@@ -48,8 +49,8 @@ async function loadBooks() {
   books.forEach(b => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${b.title}</td>
-      <td>${b.author}</td>
+      <td>${b.name}</td>
+      <td>${b.genre}</td>
       <td>${parseFloat(b.price).toFixed(2)} €</td>
       <td>${b.stock}</td>
       <td>
@@ -63,11 +64,11 @@ async function loadBooks() {
 
 bookForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const title = document.getElementById("book-title").value;
-  const author = document.getElementById("book-author").value;
+  const name = document.getElementById("book-name").value;
+  const genre = document.getElementById("book-genre").value;
   const price = document.getElementById("book-price").value;
   const stock = document.getElementById("book-stock").value;
-  const { ok, data } = await apiPost("/books", { title, author, price, stock });
+  const { ok, data } = await apiPost("/books", { name, genre, price, stock });
   if (!ok) {
     alert(data.error || "Erreur ajout livre");
     return;

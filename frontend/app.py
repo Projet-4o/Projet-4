@@ -1,32 +1,76 @@
 from flask import Flask, request, jsonify, send_from_directory
 import csv, os, uuid, hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timezones
 from flask_cors import CORS
 import webview
 import threading
-
 
 html_file = os.path.join(os.path.dirname(__file__), "index.html")
 
 app = Flask(__name__)
 CORS(app)
 
-DATA_DIR = "data"
-FRONTEND_DIR = "frontend"
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "Data")
 USERS_FILE = os.path.join(DATA_DIR, "users.csv")
 BOOKS_FILE = os.path.join(DATA_DIR, "books.csv")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.csv")
 SALES_FILE = os.path.join(DATA_DIR, "sales.csv")
-INDEX_FILE = os.path.join(FRONTEND_DIR, "index.html")
-APP_FILE = os.path.join(FRONTEND_DIR, "app.js")
-STYLES_FILE = os.path.join(FRONTEND_DIR, "styles.css")
+DASH_FILE = os.path.join("dashboard.html")
+INDEX_FILE = os.path.join("index.html")
+APP_FILE = os.path.join("app.js")
+STYLES_FILE = os.path.join("styles.css")
 SESSIONS = {}
 
+books_id = 0
+orders_id = 0
+sales_id = 0
+users_id = 0
+
+def books_id_count ():
+    global books_id
+    books_id = 0
+    with open (BOOKS_FILE, newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for _ in r:
+            books_id += 1
+    return books_id + 1
+
+def orders_id_count ():
+    global orders_id
+    orders_id = 0
+    with open (ORDERS_FILE, newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for _ in r:
+            orders_id += 1
+    return orders_id + 1
+
+def sales_id_count ():
+    global sales_id
+    sales_id = 0
+    with open (SALES_FILE, newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for _ in r:
+            sales_id += 1
+    return sales_id + 1
+
+def users_id_count():
+    global users_id
+    users_id = 0
+    with open(USERS_FILE, newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for _ in r:
+            users_id += 1
+    return users_id + 1
+
+
+    
 os.makedirs(DATA_DIR, exist_ok=True)
 
+#hachage de mot de passe
 def hash_password(pw: str) -> str:
     return hashlib.sha256(pw.encode("utf-8")).hexdigest()
 
+#création des fichiers CSV s'ils n'existent pas
 def init_csv_files():
     if not os.path.exists(USERS_FILE):
         with open(USERS_FILE, "w", newline="", encoding="utf-8") as f:
@@ -60,7 +104,7 @@ def auth_required(func):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         if token not in SESSIONS:
             return jsonify({"error": "Non autorisé"}), 401
-        if SESSIONS[token]["expires"] < datetime.utcnow():
+        if SESSIONS[token]["expires"] < datetime.now(timezone.utc):
             del SESSIONS[token]
             return jsonify({"error": "Session expirée"}), 401
         request.user_id = SESSIONS[token]["user_id"]
@@ -73,15 +117,21 @@ def register():
     data = request.get_json()
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
+
     if not email or not password:
         return jsonify({"error": "Champs manquants"}), 400
+
     if get_user_by_email(email):
         return jsonify({"error": "Email déjà utilisé"}), 400
-    user_id = str(uuid.uuid4())
+
+    user_id = users_id_count()  
+
     with open(USERS_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([user_id, email, hash_password(password)])
+
     return jsonify({"message": "Inscription réussie"}), 201
+
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -90,10 +140,8 @@ def login():
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
     print("EMAIL =", repr(email), "PWD =", repr(password))
-
     user = get_user_by_email(email)
     print("USER TROUVÉ :", user)
-
     if not user or user["password"] != hash_password(password):
         print("LOGIN ÉCHEC : mauvais identifiants")
         return jsonify({"error": "Identifiants invalides"}), 401
@@ -101,12 +149,12 @@ def login():
     token = str(uuid.uuid4())
     SESSIONS[token] = {
         "user_id": user["id"],
-        "expires": datetime.utcnow() + timedelta(hours=2)
+        "expires": datetime.now(timezone.utc) + timedelta(hours=2)
     }
     return jsonify({"token": token}), 200
 
 @app.route("/api/books", methods=["GET"])
-@auth_required
+#@auth_required
 def list_books():
     books = []
     with open(BOOKS_FILE, newline="", encoding="utf-8") as f:
@@ -116,21 +164,21 @@ def list_books():
     return jsonify(books), 200
 
 @app.route("/api/books", methods=["POST"])
-@auth_required
+#@auth_required
 def add_book():
     data = request.get_json()
     name = data.get("name", "").strip()
     genre = data.get("genre", "").strip()
     price = float(data.get("price", 0))
     stock = int(data.get("stock", 0))
-    book_id = str(uuid.uuid4())
+    book_id = books_id_count()
     with open(BOOKS_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([book_id, name, genre, price, stock])
     return jsonify({"message": "Livre ajouté"}), 201
 
 @app.route("/api/orders", methods=["POST"])
-@auth_required
+#@auth_required
 def create_order():
     data = request.get_json()
     book_id = data.get("book_id")
@@ -155,8 +203,8 @@ def create_order():
         w.writeheader()
         w.writerows(books)
     # enregistrement commande et vente
-    order_id = str(uuid.uuid4())
-    date_str = datetime.utcnow().isoformat()
+    order_id = orders_id_count()
+    date_str = datetime.now(timezone.utc).isoformat()
     with open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([order_id, request.user_id, book_id, quantity, date_str])
@@ -167,7 +215,7 @@ def create_order():
     return jsonify({"message": "Commande enregistrée"}), 201
 
 @app.route("/api/stats", methods=["GET"])
-@auth_required
+#@auth_required
 def stats():
     total_revenue = 0.0
     total_items = 0
@@ -181,16 +229,27 @@ def stats():
         "total_items": total_items
     }), 200
     
-    
 @app.route("/", methods=["GET"])
 def home():
-    return send_from_directory("frontend", "index.html")
-
+    return send_from_directory(os.path.dirname(html_file), os.path.basename(html_file))
+@app.route("/dashboard.html", methods=["GET"])
+def dashboard():
+    return send_from_directory(os.path.dirname(__file__), "dashboard.html")
+@app.route("/styles.css")
+def styles():
+    return send_from_directory(os.path.dirname(__file__), "styles.css")
+@app.route("/app.js")
+def app_js():
+    return send_from_directory(os.path.dirname(__file__), "app.js")
+@app.route("/auth.js")
+def auth_js():
+    return send_from_directory(os.path.dirname(__file__), "auth.js")
 
 def run_flask():
     app.run(port=5000, debug=True, use_reloader=False)
 
 if __name__ == "__main__":
+    app.run(port=5000, debug=True)
     t = threading.Thread(target=run_flask, daemon=True)
     t.start()
     window = webview.create_window('Librairie App', 'http://127.0.0.1:5000')
