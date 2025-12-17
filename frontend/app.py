@@ -130,6 +130,19 @@ def auth_required(func):
     wrapper.__name__ = func.__name__
     return wrapper
 
+ADMIN_EMAIL = "admin@admin.com"
+
+def admin_required(func):
+    def wrapper(*args, **kwargs):
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        session = SESSIONS.get(token)
+        if not session or session["email"] != ADMIN_EMAIL:
+            return jsonify({"error": "Accès réservé aux admins"}), 403
+        return func(*args, **kwargs)
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -184,6 +197,7 @@ def list_books():
 
 @app.route("/api/books", methods=["POST"])
 @auth_required
+@admin_required
 def add_book():
     data = request.get_json()
     name = data.get("name", "").strip()
@@ -238,6 +252,7 @@ def create_order():
 
 @app.route("/api/addbooks", methods=["POST"])
 @auth_required
+@admin_required
 def add_books():
     data = request.get_json()
     book_id = str(data.get("book_id"))
@@ -263,6 +278,7 @@ def add_books():
 
 @app.route("/api/stats", methods=["GET"])
 @auth_required
+@admin_required
 def stats():
     total_revenue = 0.0
     total_items = 0

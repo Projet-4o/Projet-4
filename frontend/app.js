@@ -1,8 +1,9 @@
 const API_BASE = "/api";
 const token = localStorage.getItem("token");
+let allBooks = [];
 
 if (!token) {
-  globalThis.location.href = "index.html";
+  window.location.href = "/";
 }
 
 const booksTableBody = document.querySelector("#books-table tbody");
@@ -10,11 +11,29 @@ const bookForm = document.getElementById("book-form");
 const statItems = document.getElementById("stat-items");
 const statRevenue = document.getElementById("stat-revenue");
 const logoutBtn = document.getElementById("logout-btn");
+const searchInput = document.getElementById("search-btn");
 
-logoutBtn.addEventListener("click", () => {
-  localStorage.removeItem("token");
-  globalThis.location.href = "index.html";
-});
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  });
+}
+
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    const q = searchInput.value.toLowerCase().trim();
+
+    const filtered = allBooks.filter((b) =>
+      b.name.toLowerCase().includes(q) ||
+      b.author.toLowerCase().includes(q) ||
+      b.genre.toLowerCase().includes(q)
+    );
+
+    renderBooksTable(filtered);
+  });
+}
+
 
 async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -46,8 +65,13 @@ async function apiPost(path, body) {
 
 async function loadBooks() {
   const books = await apiGet("/books");
+  allBooks = books;
+  renderBooksTable(books);
+}
+
+async function renderBooksTable(books) {
   booksTableBody.innerHTML = "";
-  books.forEach(b => {
+  books.forEach((b) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${b.name}</td>
@@ -56,7 +80,7 @@ async function loadBooks() {
       <td>${b.price} €</td>
       <td>${b.stock}</td>
       <td>
-        <input type="number" min="1" value="1" class="qty-input">
+        <input id=order-btn type="number" min="1" value="1" class="qty-input">
         <button class="order-btn" data-id="${b.id}">Commander</button>
       </td>
       <td class="admin-actions"></td>    
@@ -106,11 +130,16 @@ async function checkAdminAndShowButton() {
     const adminEmail = "admin@admin.com";
     
     const addStockBtns = document.querySelectorAll(".btn-add-stock");
+    const addBookForm = document.getElementById("add-book-section");
+    const statSection = document.getElementById("stat-section");
     
     if (user.email !== adminEmail) {
         addStockBtns.forEach(btn => btn.style.display = "none");
+        addBookForm.style.display = "none";
+        statSection.style.display = "none";
     }
 }
+
 
 async function loadStats() {
     const stats = await apiGet("/stats");
@@ -125,7 +154,6 @@ bookForm.addEventListener("submit", async (e) => {
   const genre = document.getElementById("book-genre").value;
   const price = document.getElementById("book-price").value;
   const stock = document.getElementById("book-stock").value;
-//const { ok, data } = await apiPost("/books", { name, author, genre, price, stock });
   const result = await apiPost("/books", { name, author, genre, price, stock });
     
     if (result.ok) {
@@ -166,6 +194,8 @@ async function loadStats() {
   statItems.textContent = stats.total_items;
   statRevenue.textContent = stats.total_revenue.toFixed(2);
 }
+
+
 
 async function init() {
     await loadBooks();

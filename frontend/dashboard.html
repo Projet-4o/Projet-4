@@ -12,7 +12,7 @@
   </header>
 
   <main class="grid">
-    <section class="card">
+    <section class="card" id="add-book-section">
       <h2>Ajouter un livre</h2>
       <form id="book-form">
         <input type="text" id="book-name" placeholder="Name" required>
@@ -22,6 +22,16 @@
         <input type="number" id="book-stock" placeholder="Stock initial" required>
         <button type="submit">Ajouter</button>
       </form>
+    </section>
+
+    <section class="searchbar card">
+      <h2>Rechercher des livres</h2>
+        <input
+          type="text"
+          id="search-btn"
+          placeholder="Rechercher par titre, auteur ou genre"
+          style="margin-bottom:10px; width:100%; padding:6px;"
+        />
     </section>
 
     <section class="card">
@@ -41,7 +51,7 @@
       </table>
     </section>
 
-    <section class="card">
+    <section class="card" id="stat-section">
       <h2>Statistiques ventes</h2>
       <p>Total articles vendus : <span id="stat-items">0</span></p>
       <p>Chiffre d'affaires : <span id="stat-revenue">0</span> €</p>
