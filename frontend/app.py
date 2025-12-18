@@ -281,7 +281,9 @@ def add_book():
 @app.route("/api/orders", methods=["POST"])
 @auth_required
 def create_order():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
     data = request.get_json()
+    email = SESSIONS[token]["email"]
     book_id = data.get("book_id")
     quantity = int(data.get("quantity", 1))
     books = []
@@ -310,6 +312,7 @@ def create_order():
     with open(SALES_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([order_id, book_id, quantity, total_price, date_str])
+    write_log("INFO", "/api/orders", "order_successfully_registered","" f"email={email }," f"id={order_id},quantity={quantity}", user_id=request.user_id)
     return jsonify({"message": "Commande enregistrée"}), 201
 
 @app.route("/api/addbooks", methods=["POST"])
@@ -335,7 +338,39 @@ def add_books():
         w = csv.DictWriter(f, fieldnames=["id", "name", "author", "genre", "price", "stock"])
         w.writeheader()
         w.writerows(books)
+    write_log("INFO", "/api/addbooks", "Stock_renewed", f"book_id={book_id},quantity={quantity}", user_id=request.user_id)
     return jsonify({"message": "Stock mis à jour"}), 201
+
+@app.route("/api/books/<book_id>/price", methods=["PUT"])
+@auth_required
+@admin_required
+def update_book_price(book_id):
+    data = request.get_json()
+    try:
+        new_price = float(data.get("price", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Prix invalide"}), 400
+
+    if new_price <= 0:
+        return jsonify({"error": "Le prix doit être positif"}), 400
+    books = []
+    with open(BOOKS_FILE, newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            books.append(row)
+    book = next((b for b in books if str(b["id"]) == str(book_id)), None)
+    if not book:
+        return jsonify({"error": "Livre introuvable"}), 404
+    old_price = book["price"]
+    for b in books:
+        if str(b["id"]) == str(book_id):
+            b["price"] = str(new_price)
+    with open(BOOKS_FILE, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["id", "name", "author", "genre", "price", "stock"])
+        w.writeheader()
+        w.writerows(books)
+    write_log("INFO", f"/api/books/{book_id}/price", "update_price_success", f"old={old_price},new={new_price}", user_id=request.user_id)
+    return jsonify({"message": "Prix mis à jour", "old_price": old_price, "new_price": new_price}), 200
 
 
 @app.route("/api/stats", methods=["GET"])

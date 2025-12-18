@@ -62,6 +62,24 @@ async function apiPost(path, body) {
   return res.json().then(data => ({ ok: res.ok, data }));
 }
 
+async function apiPut(path, body) {
+  const res = await fetch(API_BASE + path, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token,
+    },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    globalThis.location.href = "index.html";
+    return res.json().then(data => ({ ok: false, data }));
+  }
+  const data = await res.json();
+  return { ok: res.ok, data };
+}
+
 
 async function loadBooks() {
   const books = await apiGet("/books");
@@ -78,13 +96,13 @@ async function renderBooksTable(books) {
       <td>${b.author}</td>
       <td>${b.genre}</td>
       <td>${b.price} €</td>
+      <td>
+        <button class="order-btn" data-id="${b.id}">Modifier le prix</button>
+      </td>
       <td>${b.stock}</td>
       <td>
         <input id=order-btn type="number" min="1" value="1" class="qty-input">
         <button class="order-btn" data-id="${b.id}">Commander</button>
-      </td>
-      <td>
-        <button id=erase-book class="erase-books-btn" data-id="${b.id}">Retirer</button>
       </td>
       <td>
         <button id=delete-books class="delete-books-btn" data-id="${b.id}">Supprimer</button>

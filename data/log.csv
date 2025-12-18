@@ -6,3 +6,28 @@ timestamp,level,user_id,endpoint,action,details
 2025-12-18T13:21:07.042763+00:00,WARNING,,/api/login,login_failed,email=admin@admin.com
 2025-12-18T13:21:07.963454+00:00,WARNING,,/api/login,login_failed,email=admin@admin.com
 2025-12-18T13:26:17.443041+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
+2025-12-18T13:44:02.251420+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
+2025-12-18T13:47:00.675374+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
+2025-12-18T14:03:56.400484+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
+2025-12-18T14:05:10.553474+00:00,INFO,1,/api/books,add_book_success,"id=32,name=Sapiens"
+2025-12-18T14:05:22.463142+00:00,INFO,1,/api/orders,order_successfully_registered,"id=24,quantity=1"
+2025-12-18T14:05:29.741600+00:00,INFO,1,/api/addbooks,Stock_renewed,"id=1,name=20"
+2025-12-18T14:13:23.050151+00:00,INFO,1,/api/orders,order_successfully_registered,"id=25,name=1"
+2025-12-18T14:13:47.285807+00:00,INFO,2,/api/login,login_success,email=user@user.com
+2025-12-18T14:13:47.337245+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:20:36.377402+00:00,INFO,2,/api/login,login_success,email=user@user.com
+2025-12-18T14:20:36.434779+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:20:44.885601+00:00,INFO,2,/api/orders,order_successfully_registered,"email=user@user.comid=26,quantity1"
+2025-12-18T14:20:46.852248+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:22:33.368526+00:00,INFO,2,/api/login,login_success,email=user@user.com
+2025-12-18T14:22:33.434819+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:22:36.912091+00:00,INFO,2,/api/orders,order_successfully_registered,"email=user@user.comid=27,quantity=1"
+2025-12-18T14:22:37.628702+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:23:26.152785+00:00,INFO,2,/api/login,login_success,email=user@user.com
+2025-12-18T14:23:26.225489+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:23:28.872674+00:00,INFO,2,/api/orders,order_successfully_registered,"email=user@user.com,id=28,quantity=1"
+2025-12-18T14:23:29.698871+00:00,WARNING,2,/api/stats,admin_forbidden,accès non admin
+2025-12-18T14:25:26.520047+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
+2025-12-18T14:25:30.924245+00:00,INFO,1,/api/addbooks,Stock_renewed,"id=1,quantity=4"
+2025-12-18T14:55:04.302125+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
+2025-12-18T14:55:56.484366+00:00,INFO,1,/api/login,login_success,email=admin@admin.com
