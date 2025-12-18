@@ -83,6 +83,12 @@ async function renderBooksTable(books) {
         <input id=order-btn type="number" min="1" value="1" class="qty-input">
         <button class="order-btn" data-id="${b.id}">Commander</button>
       </td>
+      <td>
+        <button id=erase-book class="erase-books-btn" data-id="${b.id}">Retirer</button>
+      </td>
+      <td>
+        <button id=delete-books class="delete-books-btn" data-id="${b.id}">Supprimer</button>
+      </td>
       <td class="admin-actions"></td>    
     `;
 
@@ -196,6 +202,42 @@ async function loadStats() {
 }
 
 
+function sortTable(n) {
+  var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+  table = document.getElementById("books-table");
+  switching = true;
+  dir = "asc";
+  while (switching) {
+    switching = false;
+    rows = table.rows;
+    for (i = 1; i < (rows.length - 1); i++) {
+      shouldSwitch = false;
+      x = rows[i].getElementsByTagName("TD")[n];
+      y = rows[i + 1].getElementsByTagName("TD")[n];
+      if (dir == "asc") {
+        if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+          shouldSwitch = true;
+          break;
+        }
+      } else if (dir == "desc") {
+        if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+          shouldSwitch = true;
+          break;
+        }
+      }
+    }
+    if (shouldSwitch) {
+      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+      switching = true;
+      switchcount ++;
+    } else {
+      if (switchcount == 0 && dir == "asc") {
+        dir = "desc";
+        switching = true;
+      }
+    }
+  }
+}
 
 async function init() {
     await loadBooks();

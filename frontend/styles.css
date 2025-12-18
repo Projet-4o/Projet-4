@@ -122,6 +122,19 @@ tbody > tr:nth-of-type(even) {
   background-color: rgb(237 238 242);
 }
 
+.desc:after {
+  content: '▾';
+}
+
+.asc:after {
+  content: '▴';
+}
+
+.inactive:after {
+  content: '▾';
+  color: gray;
+  opacity: 0.5;
+}
 
 .order-btn {
   padding: 4px 8px;

@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-import csv, os, uuid, hashlib
+import csv, os, uuid, hashlib, binascii
 from datetime import datetime, timezone, timedelta
 from flask_cors import CORS
 import webview  
@@ -18,6 +18,7 @@ DASH_FILE = os.path.join("dashboard.html")
 INDEX_FILE = os.path.join(html_file)
 APP_FILE = os.path.join("app.js")
 STYLES_FILE = os.path.join("styles.css")
+LOG_FILE = os.path.join(DATA_DIR, "log.csv")
 SESSIONS = {}
 
 def load_books():
@@ -77,15 +78,25 @@ def users_id_count():
 os.makedirs(DATA_DIR, exist_ok=True)
 
 #hachage de mot de passe
-def hash_password(pw: str) -> str:
-    return hashlib.sha256(pw.encode("utf-8")).hexdigest()
+def hash_password(password: str, salt: str) -> str:
+    dk = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100_000
+    )
+    return binascii.hexlify(dk).decode("utf-8")
+
+def generate_salt(length: int = 16) -> str:
+    return binascii.hexlify(os.urandom(length)).decode("utf-8")
+
 
 #création des fichiers CSV s'ils n'existent pas
 def init_csv_files():
     if not os.path.exists(USERS_FILE):
         with open(USERS_FILE, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["id", "email", "password"])
+            w.writerow(["id", "email", "salt", "password"])
     if not os.path.exists(BOOKS_FILE):
         with open(BOOKS_FILE, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
@@ -93,11 +104,16 @@ def init_csv_files():
     if not os.path.exists(ORDERS_FILE):
         with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["id", "user_id", "book_id", "quantity", "date"])
+            w.writerow(["id", "userid", "book_id", "quantity", "date"])
     if not os.path.exists(SALES_FILE):
         with open(SALES_FILE, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["id", "book_id", "quantity", "total_price", "date"])
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["timestamp", "level", "user_id", "endpoint", "action", "details"])
+
 
 init_csv_files()
 
@@ -117,6 +133,13 @@ def get_book_by_name(name):
     return None
 
 
+def write_log(level, endpoint, action, details="", user_id=None):
+    timestamp = datetime.now(timezone.utc).isoformat()
+    with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow([timestamp, level, user_id or "", endpoint, action, details])
+
+
 def auth_required(func):
     def wrapper(*args, **kwargs):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -125,7 +148,7 @@ def auth_required(func):
         if SESSIONS[token]["expires"] < datetime.now(timezone.utc):
             del SESSIONS[token]
             return jsonify({"error": "Session expirée"}), 401
-        request.user_id = SESSIONS[token]["user_id"]
+        request.userid = SESSIONS[token]["userid"]
         return func(*args, **kwargs)
     wrapper.__name__ = func.__name__
     return wrapper
@@ -152,11 +175,14 @@ def register():
         return jsonify({"error": "Champs manquants"}), 400
     if get_user_by_email(email):
         return jsonify({"error": "Email déjà utilisé"}), 400
-    user_id = users_id_count()  
+    userid = users_id_count()
+    salt = generate_salt()
+    password_hash = hash_password(password, salt)
     with open(USERS_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow([user_id, email, hash_password(password)])
+        w.writerow([userid, email, salt, password_hash])
     return jsonify({"message": "Inscription réussie"}), 201
+
 
 
 @app.route("/api/login", methods=["POST"])
@@ -165,16 +191,20 @@ def login():
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
     user = get_user_by_email(email)
-    if not user or user["password"] != hash_password(password):
-        print("LOGIN ÉCHEC : mauvais identifiants")
+    if not user:
+        return jsonify({"error": "Identifiants invalides"}), 401
+    salt = user["salt"]
+    expected_hash = user["password"]
+    if hash_password(password, salt) != expected_hash:
         return jsonify({"error": "Identifiants invalides"}), 401
     token = str(uuid.uuid4())
     SESSIONS[token] = {
-        "user_id": user["id"],
+        "userid": user["id"],
         "email": user["email"],
-        "expires": datetime.now(timezone.utc) + timedelta(hours=2)
+        "expires": datetime.now(timezone.utc) + timedelta(hours=2),
     }
     return jsonify({"token": token}), 200
+
 
 @app.route("/api/me", methods=["GET"])
 @auth_required
@@ -243,7 +273,7 @@ def create_order():
     date_str = datetime.now(timezone.utc).isoformat()
     with open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow([order_id, request.user_id, book_id, quantity, date_str])
+        w.writerow([order_id, request.userid, book_id, quantity, date_str])
     total_price = float(book["price"]) * quantity
     with open(SALES_FILE, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
