@@ -28,19 +28,21 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # recommandé
 
-    - name: SonarQube Scan (SonarCloud)
-      uses: sonarsource/sonarqube-scan-action@v6
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        projectBaseDir: backend
-        args: >
-          -Dsonar.organization=projet-4a
-          -Dsonar.projectKey=Projet-4o_Projet-4
-          -Dsonar.sources=.
+      - name: SonarQube Scan (SonarCloud)
+        uses: sonarsource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.organization=projet-4o
+            -Dsonar.projectKey=Projet-4o_Projet-4
+            -Dsonar.sources=.
+            -Dsonar.qualitygate.wait=true
