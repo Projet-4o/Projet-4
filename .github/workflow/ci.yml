@@ -39,10 +39,3 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: frontend
-          args: >
-            -Dsonar.organization=projet-4o
-            -Dsonar.projectKey=Projet-4o_Projet-4
-            -Dsonar.sources=.
-            -Dsonar.qualitygate.wait=true
