@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, send_from_directory
 from datetime import datetime, timezone, timedelta
 import csv, os, uuid, hashlib, binascii
 from flask_cors import CORS
-import pandas as pd
 import threading
 import requests
 import webview  
@@ -282,18 +281,6 @@ def add_book():
         w.writerow([book_id, name, author, genre, price, stock])
     write_log("INFO", "/api/books", "add_book_success", f"id={book_id},name={name}", user_id=request.user_id)
     return jsonify({"message": "Livre ajouté avec succès", "id": book_id}), 201
-
-#Suppression de livre
-@app.route("/api/deletebooks", methods=["POST"])
-@auth_required
-@admin_required
-def delete_books():
-    data = request.get_json()
-    book_id = str(data.get("book_id"))
-    df = pd.read_csv("./data/books.csv", column_index=0)
-    df = df.drop(df.index[-1])
-    df.to_csv('./data/books.csv', index=False)
-    return jsonify({"message": "Stock mis à jour"}), 201
 
 #Passer une commande
 @app.route("/api/orders", methods=["POST"])
