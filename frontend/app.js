@@ -260,13 +260,20 @@ document.addEventListener("DOMContentLoaded", () => {
           document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
           const panel = document.getElementById(`tab-${target}`);
           if (panel) panel.classList.add('active');
+          if (target === 'logs' && typeof fetchLogs === 'function') fetchLogs();
         });
       });
     }
     if (typeof loadBooks === "function") {
-      loadBooks().then(() => fetchCart()).then(() => fetchOrders());
+      loadBooks().then(() => fetchCart()).then(() => fetchOrders()).then(() => checkAdminAndShowButton()).then(() => {
+        const dl = document.getElementById('download-logs-btn');
+        if (dl) dl.addEventListener('click', downloadLogs);
+      });
     } else {
-      fetchCart().then(() => fetchOrders());
+      fetchCart().then(() => fetchOrders()).then(() => checkAdminAndShowButton()).then(() => {
+        const dl = document.getElementById('download-logs-btn');
+        if (dl) dl.addEventListener('click', downloadLogs);
+      });
     }
 });
 
@@ -435,6 +442,9 @@ async function checkAdminAndShowButton() {
         }
       }
     }
+    // hide logs tab for non-admins
+    const logsTabBtn = document.querySelector('.tabs button[data-tab="logs"]');
+    if (logsTabBtn) logsTabBtn.remove();
   }
 }
 
@@ -595,11 +605,111 @@ async function init() {
     await loadBooks();
     await checkAdminAndShowButton();
     const user = await apiGet("/me");
-    await loadTopBooksChart();
+    // use unified chart fetcher that updates the images used in the template
+    await fetchCharts();
     if (user.email === "admin@admin.com") {
       await loadStats();
-      await loadYearlySalesChart();
-  }
+    }
 }
 
 init();
+
+// Fetch logs (admin only)
+async function fetchLogs() {
+  const tableBody = document.querySelector('#logs-table tbody');
+  if (!tableBody) return;
+  try {
+    const logs = await apiGet('/logs');
+    if (!Array.isArray(logs)) return;
+    logs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    tableBody.innerHTML = '';
+    logs.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:0.5rem;border-bottom:1px solid #eee;">${row.timestamp || ''}</td>
+        <td style="padding:0.5rem;border-bottom:1px solid #eee;">${row.level || ''}</td>
+        <td style="padding:0.5rem;border-bottom:1px solid #eee;">${row.user_email || row.user_id || ''}</td>
+        <td style="padding:0.5rem;border-bottom:1px solid #eee;">${row.endpoint || ''}</td>
+        <td style="padding:0.5rem;border-bottom:1px solid #eee;">${row.action || ''}</td>
+        <td style="padding:0.5rem;border-bottom:1px solid #eee;">${row.details || ''}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('fetchLogs', e);
+  }
+}
+
+// Poll logs every 5s when logs tab is active
+setInterval(() => {
+  const panel = document.getElementById('tab-logs');
+  if (panel && panel.classList.contains('active')) fetchLogs();
+}, 5000);
+
+
+// Centralized download handler with debug logging
+async function downloadLogs(e) {
+  e && e.preventDefault();
+  try {
+    const token = getToken();
+    console.log('Downloading logs...');
+
+    // If running inside pywebview, use the exposed python API to save the file
+    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.save_logs === 'function') {
+      try {
+        const txtRes = await fetch('/api/logs/text', { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
+        if (!txtRes.ok) {
+          let msg = 'Erreur téléchargement';
+          try { const j = await txtRes.json(); msg = j.error || msg; } catch(_){}
+          alert(msg + ` (HTTP ${txtRes.status})`);
+          return;
+        }
+        const text = await txtRes.text();
+        // call pywebview api which should write to disk and return a status
+        try {
+          const resApi = await window.pywebview.api.save_logs(text, 'logs.csv');
+          console.log('pywebview.save_logs result:', resApi);
+          alert('Fichier enregistré depuis l\'application de bureau dans votre dossier Téléchargements.');
+          return;
+        } catch (apiErr) {
+          console.error('pywebview api error', apiErr);
+          // fall through to browser download fallback
+        }
+      } catch (err) {
+        console.error('Error fetching logs text for pywebview:', err);
+        // fall through to browser download fallback
+      }
+    }
+
+    // Fallback for regular browsers: fetch binary and trigger download
+    const res = await fetch('/api/logs/download', { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
+    console.log('Response status:', res.status);
+    console.log('Content-Disposition:', res.headers.get('content-disposition'));
+    console.log('Content-Type:', res.headers.get('content-type'));
+    if (!res.ok) {
+      let msg = 'Erreur téléchargement';
+      try { const j = await res.json(); msg = j.error || msg; } catch(_){ }
+      alert(msg + ` (HTTP ${res.status})`);
+      return;
+    }
+    const blob = await res.blob();
+    console.log('Blob size:', blob.size);
+    if (!blob || blob.size === 0) {
+      alert('Le fichier est vide ou n\'a pas pu être téléchargé (taille 0). Vérifiez le serveur.');
+      return;
+    }
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'logs.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    alert('Téléchargement démarré — vérifiez votre dossier Téléchargements.');
+  } catch (err) {
+    console.error('downloadLogs error', err);
+    alert('Erreur lors du téléchargement — voir console pour détails.');
+  }
+}

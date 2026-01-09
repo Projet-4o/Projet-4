@@ -1,19 +1,23 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
 from datetime import datetime, timezone, timedelta
+from matplotlib.ticker import FuncFormatter
 import csv, os, uuid, hashlib, binascii
 from matplotlib.figure import Figure
 from collections import defaultdict
+import matplotlib.pyplot as plt
 from flask_cors import CORS
+from typing import Optional
 from io import BytesIO
+import numpy as np
+import matplotlib
 import threading
 import requests
 import webview  
 import base64
-import numpy as np
-import matplotlib
+
+
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+
 
 html_file = os.path.join(os.path.dirname(__file__), "index.html")
 app = Flask(__name__, template_folder='.')
@@ -149,6 +153,14 @@ def get_user_by_email(email):
     users = load_users()
     for row in users:
         if row["email"] == email:
+            return row
+    return None
+
+
+def get_user_by_id(user_id):
+    users = load_users()
+    for row in users:
+        if str(row.get("id")) == str(user_id):
             return row
     return None
 
@@ -294,6 +306,9 @@ def register():
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
 
+    # log the registration attempt (email may be empty)
+    write_log("INFO", "/api/register", "register_attempt", f"email={email}")
+
     sha_password = hashlib.sha1(password.encode()).hexdigest()
     sha_prefix = sha_password[0:5]
     sha_postfix = sha_password[5:].upper()
@@ -312,19 +327,23 @@ def register():
         pwnd_dict[pwnd_hash[0]] = pwnd_hash[1]
 
     if not email or not password:
+        write_log("WARNING", "/api/register", "register_invalid", "champs manquants", user_id=None)
         return jsonify({"error": "Champs manquants"}), 400
     if get_user_by_email(email):
+        write_log("WARNING", "/api/register", "register_duplicate", f"email={email}")
         return jsonify({"error": "Email déjà utilisé"}), 400
     user_id = users_id_count()
     salt = generate_salt()
     password_hash = hash_password(password, salt)
     if sha_postfix in pwnd_dict.keys():
+        write_log("WARNING", "/api/register", "register_compromised", f"email={email}")
         return jsonify({"error": "Mot de passe compromis"}), 400
-    else:
-        with open(USERS_FILE, "a", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow([user_id, email, salt, password_hash])
-        return jsonify({"message": "Inscription réussie"}), 201
+
+    with open(USERS_FILE, "a", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow([user_id, email, salt, password_hash])
+    write_log("INFO", "/api/register", "register_success", f"email={email}", user_id=user_id)
+    return jsonify({"message": "Inscription réussie"}), 201
 
 
 #Connexion
@@ -803,15 +822,17 @@ def _generate_stats_and_charts_payload():
     # Genre chart
     genre_quantities = defaultdict(float)
     for book_id, total_qty in book_quantities.items():
-        genre = book_info.get(book_id, {}).get("genre")
+        genre = book_info.get(book_id, {}).get("genre") or "Unknown"
+        # ensure genre is a string key
+        genre = str(genre)
         genre_quantities[genre] += total_qty
     genre_list = [(genre, qty) for genre, qty in genre_quantities.items()]
     genre_list.sort(key=lambda x: x[1], reverse=True)
 
     plot_genre = None
     if genre_list:
-        genres = [g for g, _ in genre_list]
-        gvals = [v for _, v in genre_list]
+        genres = [str(g) if g is not None else "Unknown" for g, _ in genre_list]
+        gvals = [float(v) for _, v in genre_list]
         fig2 = Figure(figsize=(8, 4))
         ax2 = fig2.subplots()
         bars2 = ax2.bar(genres, gvals, color="lightgreen", edgecolor="darkgreen")
@@ -841,6 +862,65 @@ def _generate_stats_and_charts_payload():
 def stats_charts():
     data = _generate_stats_and_charts_payload()
     return jsonify(data), 200
+
+
+@app.route('/api/logs', methods=['GET'])
+@auth_required
+@admin_required
+def get_logs():
+    logs = []
+    if not os.path.exists(LOG_FILE):
+        return jsonify(logs), 200
+    with open(LOG_FILE, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row:
+                continue
+            entry = {
+                'timestamp': row[0] if len(row) > 0 else '',
+                'level': row[1] if len(row) > 1 else '',
+                'user_id': row[2] if len(row) > 2 else '',
+                'endpoint': row[3] if len(row) > 3 else '',
+                'action': row[4] if len(row) > 4 else '',
+                'details': row[5] if len(row) > 5 else ''
+            }
+            uid = entry.get('user_id')
+            entry['user_email'] = ''
+            if uid:
+                u = get_user_by_id(uid)
+                if u:
+                    entry['user_email'] = u.get('email', '')
+            logs.append(entry)
+    try:
+        logs.sort(key=lambda r: datetime.fromisoformat(r['timestamp'].replace('Z', '+00:00')) if r['timestamp'] else datetime.min, reverse=True)
+    except Exception:
+        pass
+    return jsonify(logs), 200
+
+
+@app.route('/api/logs/download', methods=['GET'])
+@auth_required
+@admin_required
+def download_logs():
+    if not os.path.exists(LOG_FILE):
+        return jsonify({'error': 'Fichier de logs introuvable'}), 404
+    dirpath = os.path.dirname(LOG_FILE) or '.'
+    filename = os.path.basename(LOG_FILE)
+    resp = send_from_directory(dirpath, filename, as_attachment=True)
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    return resp
+
+
+@app.route('/api/logs/text', methods=['GET'])
+@auth_required
+@admin_required
+def logs_text():
+    if not os.path.exists(LOG_FILE):
+        return "", 200, {'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store'}
+    with open(LOG_FILE, 'r', encoding='utf-8') as f:
+        data = f.read()
+    return data, 200, {'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store'}
 
 def run_flask():
     app.run(port=5000, debug=True, use_reloader=False)
@@ -908,7 +988,21 @@ def chart_yearly_sales():
     return jsonify({"image": f"data:image/png;base64,{image_base64}"}), 200
 
 if __name__ == "__main__":
+    # Expose a small JS API to allow the pywebview window to save files
+    class WebAPI:
+        def save_logs(self, content: str, filename: Optional[str] = 'logs.csv') -> str:
+            try:
+                downloads = os.path.join(os.path.expanduser('~'), 'Downloads')
+                os.makedirs(downloads, exist_ok=True)
+                path = os.path.join(downloads, filename)
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                return path
+            except Exception as e:
+                return str(e)
+
     t = threading.Thread(target=run_flask, daemon=True)
     t.start()
-    window = webview.create_window("Amazin'", 'http://127.0.0.1:5000')
+    api = WebAPI()
+    window = webview.create_window("Amazin'", 'http://127.0.0.1:5000', js_api=api)
     webview.start()

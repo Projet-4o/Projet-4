@@ -12,12 +12,15 @@
       <button id="open-cart-btn" class="cart-btn">Panier (<span id="cart-count">0</span>)</button>
       <button id="logout-btn">Déconnexion</button>
     </div>
+
+    <!-- logs panel removed from header and moved into main below -->
   </header>
 
   <main class="grid">
     <div class="tabs" role="tablist" aria-label="Navigation principale">
       <button class="active" data-tab="catalog" role="tab" aria-selected="true">Catalogue</button>
       <button data-tab="stats" role="tab" aria-selected="false">Statistiques</button>
+      <button data-tab="logs" role="tab" aria-selected="false">Logs</button>
     </div>
 
     <div id="tab-catalog" class="tab-panel active">
@@ -83,7 +86,7 @@
           <section class="card chart-section" id="chart-top-books-section">
             <h3>Top des ventes</h3>
             <div class="chart-container">
-              <img id="img-top-books" src="" alt="Top livres" style="width:100%;height:auto;display:block;" />
+              <img id="img-top-books" src="" alt="Top livres" style="width:70%;height:auto;display:block;" />
               <p id="msg-top-books" style="display:none;color:#666;font-size:0.9rem;">Aucun graphique disponible.</p>
             </div>
           </section>
@@ -91,10 +94,34 @@
           <section class="card chart-section" id="chart-yearly-sales-section">
             <h3>Ventes par genre</h3>
             <div class="chart-container">
-              <img id="img-by-genre" src="" alt="Par genre" style="width:100%;height:auto;display:block;" />
+              <img id="img-by-genre" src="" alt="Par genre" style="width:70%;height:auto;display:block;" />
               <p id="msg-by-genre" style="display:none;color:#666;font-size:0.9rem;">Aucun graphique disponible.</p>
             </div>
           </section>
+      </div>
+
+      <div id="tab-logs" class="tab-panel">
+        <section class="card" id="logs-section" style="display:flex;flex-direction:column;align-items:center;">
+          <h2>Logs (admin)</h2>
+          <div style="width:100%;max-width:1100px;display:flex;justify-content:center;margin-bottom:0.75rem;">
+            <button id="download-logs-btn" style="padding:0.5rem 1rem;">Télécharger les logs (CSV)</button>
+          </div>
+          <div style="width:100%;max-width:1100px;margin:0 auto;overflow:auto;">
+            <table id="logs-table" style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #ddd;">Timestamp</th>
+                  <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #ddd;">Niveau</th>
+                  <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #ddd;">Utilisateur</th>
+                  <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #ddd;">Endpoint</th>
+                  <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #ddd;">Action</th>
+                  <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #ddd;">Détails</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
       </div>
 
     <aside id="cart-panel" class="cart-closed">
